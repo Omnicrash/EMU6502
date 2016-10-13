@@ -6,12 +6,18 @@ It features accurate cycle counting, full decimal support. With the exception of
 Real-world bugs are only emulated when the BUG symbol is defined.
 
 # TEST
+![6502 testsuite screenshot](testsuite.png)
+
 A simple testsuite to test every valid opcode and decimal mode.
 The binaries used by the test suite are not mine, they are property of their respective authors. Source code included where available.
 
 # Simple64
+![Simple64 screenshot](Simple64.png)
+
 Simple64 is a quick 5-minute implementation of a C64 emulator. It loads the kernal, character and basic rom, starts execution, and converts the ram buffer containing PETSCII to ASCII and writes it to the console.
 Except for the blinking cursor nothing else is emulated, no CIA, VIC-II or SID, so don't expect this to run any C64 software.
+
+Also note that the memory counted by the C64 ROM is off, likely because only the CPU is implemented.
 
 To run, it requires the following C64 rom files in the output folder: basic.rom, char.rom, kernal.rom.
 
