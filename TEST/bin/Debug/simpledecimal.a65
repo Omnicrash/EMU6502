@@ -1,0 +1,156 @@
+carry		equ %00000001
+zero		equ %00000010
+interrupt	equ %00000100
+decimal		equ %00001000
+break		equ %00010000
+reserved	equ %00100000
+overflow	equ %01000000
+negative	equ %10000000
+
+fz      	equ zero
+fn 			equ negative
+fc			equ carry
+fvc			equ	overflow+carry
+fnc			equ negative+carry
+fnv			equ negative+overflow
+fnvc		equ negative+overflow+carry
+fzc			equ zero+carry
+
+
+
+cmp_flag    macro       ;I_flag is always enabled
+            cmp #(\1|$38)&$ff
+            endm
+
+tst_stat    macro       ;testing flags in the processor status register
+            php         ;save status
+            php         ;use stack to retrieve status
+            pla
+            cmp_flag \1
+            bne *       ;trap
+            plp         ;restore status
+            endm
+
+tst_a       macro       ;testing result in accu & flags
+            php         ;save flags
+            php
+            cmp #\1     ;test result
+            bne *       ;trap
+            pla         ;load status
+            cmp_flag \2
+            bne *       ;trap
+            plp         ;restore status
+            endm
+
+; --- Start program ---
+	org $1000
+
+	cli
+	sed
+
+; --- ADC tests ---
+test1:
+	clc
+	lda #$00
+	adc #$00
+	tst_a $00,fz
+	
+test2:
+	sec
+	lda #$79
+	adc #$00
+	tst_a $80,fnv
+
+test3:
+	clc
+	lda #$24
+	adc #$56
+	tst_a $80,fnv
+
+test4:
+	clc
+	lda #$93
+	adc #$82
+	tst_a $75,fvc
+
+test5:
+	clc
+	lda #$89
+	adc #$76
+	tst_a $65,fc
+
+test6:
+	sec
+	lda #$89
+	adc #$76
+	tst_a $66,fzc
+
+test7:
+	clc
+	lda #$80
+	adc #$F0
+	tst_a $D0,fvc
+
+test8:
+	clc
+	lda #$80
+	adc #$FA
+	tst_a $E0,fnc
+
+test9:
+	clc
+	lda #$2F
+	adc #$4F
+	tst_a $74,0
+
+test10:
+	sec
+	lda #$6F
+	adc #$00
+	tst_a $76,0
+
+; --- SBC tests ---
+test11:
+	clc
+	lda #$00
+	sbc #$00
+	tst_a $99,fn
+
+test12:
+	sec
+	lda #$00
+	sbc #$00
+	tst_a $00,fzc
+
+test13:
+	sec
+	lda #$00
+	sbc #$01
+	tst_a $99,fn
+
+test14:
+	sec
+	lda #$0A
+	sbc #$00
+	tst_a $0A,fc
+
+test15:
+	clc
+	lda #$0B
+	sbc #$00
+	tst_a $0A,fc
+
+test16:
+	sec
+	lda #$9A
+	sbc #$00
+	tst_a $9A,fnc
+
+test17:
+	clc
+	lda #$9B
+	sbc #$00
+	tst_a $9A,fnc
+
+	jmp * ; the end
+	

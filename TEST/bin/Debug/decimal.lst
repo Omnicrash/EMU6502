@@ -1,0 +1,259 @@
+AS65 Assembler for R6502 [1.42].  Copyright 1994-2007, Frank A. Kingswood                                                Page    1
+------------------------------------------------- D:\Tools\6502\AS65\decimal.asm -------------------------------------------------
+
+250 lines read, no errors in pass 1.
+                        ; verify decimal mode behavior
+                        ;
+                        ; returns:
+                        ;   error = 0 if the test passed
+                        ;   error = 1 if the test failed
+                        ;
+                        ; this routine requires 17 bytes of ram -- 1 byte each for:
+                        ;   ar, cf, da, dnvzc, error, ha, hnvzc, n1, n1h, n1l, n2, n2l, nf, vf, and zf
+                        ; and 2 bytes for n2h
+                        ;
+                        ; variables:
+                        ;   n1 and n2 are the two numbers to be added or subtracted
+                        ;   n1h, n1l, n2h, and n2l are the upper 4 bits and lower 4 bits of n1 and n2
+                        ;   da and dnvzc are the actual accumulator and flag results in decimal mode
+                        ;   ha and hnvzc are the accumulator and flag results when n1 and n2 are
+                        ;     added or subtracted using binary arithmetic
+                        ;   ar, nf, vf, zf, and cf are the predicted decimal mode accumulator and
+                        ;     flag results, calculated using binary arithmetic
+                        ;
+                        ; this program takes approximately 1 minute at 1 mhz (a few seconds more on
+                        ; a 65c02 than a 6502 or 65816)
+                        ;
+                        
+0010 =                  error = $10
+0011 =                  n1 = $11
+0012 =                  n2 = $12
+0013 =                  n1h = $13
+0014 =                  n1l = $14
+0015 =                  n2h = $15
+0017 =                  n2l = $17
+0018 =                  dnvzc = $18
+0019 =                  ha = $19
+001a =                  hnvzc = $1A
+001b =                  ar = $1B
+001c =                  nf = $1C
+001d =                  vf = $1D
+001e =                  zf = $1E
+001f =                  cf = $1F
+0020 =                  da = $20
+1000 =                  		org $1000
+                        
+1000 : a001             test    ldy #1    ; initialize y (used to loop through carry flag values)
+1002 : 8410                     sty error ; store 1 in error until the test passes
+1004 : a900                     lda #0    ; initialize n1 and n2
+1006 : 8511                     sta n1
+1008 : 8512                     sta n2
+100a : a512             loop1   lda n2    ; n2l = n2 & $0f
+100c : 290f                     and #$0f  ; [1] see text
+100e : 8517                     sta n2l
+1010 : a512                     lda n2    ; n2h = n2 & $f0
+1012 : 29f0                     and #$f0  ; [2] see text
+1014 : 8515                     sta n2h
+1016 : 090f                     ora #$0f  ; n2h+1 = (n2 & $f0) + $0f
+1018 : 8516                     sta n2h+1
+101a : a511             loop2   lda n1    ; n1l = n1 & $0f
+101c : 290f                     and #$0f  ; [3] see text
+101e : 8514                     sta n1l
+1020 : a511                     lda n1    ; n1h = n1 & $f0
+1022 : 29f0                     and #$f0  ; [4] see text
+1024 : 8513                     sta n1h
+1026 : 204e10                   jsr add
+1029 : 20f410                   jsr a6502
+102c : 20e710                   jsr compare
+102f : d01a                     bne done
+1031 : 209210                   jsr sub
+1034 : 20fd10                   jsr s6502
+1037 : 20e710                   jsr compare
+103a : d00f                     bne done
+103c : e611                     inc n1    ; [5] see text
+103e : d0da                     bne loop2 ; loop through all 256 values of n1
+1040 : e612                     inc n2    ; [6] see text
+1042 : d0c6                     bne loop1 ; loop through all 256 values of n2
+1044 : 88                       dey
+1045 : 10c3                     bpl loop1 ; loop through both values of the carry flag
+1047 : a900                     lda #0    ; test passed, so store 0 in error
+1049 : 8510                     sta error
+104b : 4c4b10           done    jmp *	  ; trap when program finished
+                        
+                        ; calculate the actual decimal mode accumulator and flags, the accumulator
+                        ; and flag results when n1 is added to n2 using binary arithmetic, the
+                        ; predicted accumulator result, the predicted carry flag, and the predicted
+                        ; v flag
+                        ;
+104e : f8               add     sed       ; decimal mode
+104f : c001                     cpy #1    ; set carry if y = 1, clear carry if y = 0
+1051 : a511                     lda n1
+1053 : 6512                     adc n2
+1055 : 8520                     sta da    ; actual accumulator result in decimal mode
+1057 : 08                       php
+1058 : 68                       pla
+1059 : 8518                     sta dnvzc ; actual flags result in decimal mode
+105b : d8                       cld       ; binary mode
+105c : c001                     cpy #1    ; set carry if y = 1, clear carry if y = 0
+105e : a511                     lda n1
+1060 : 6512                     adc n2
+1062 : 8519                     sta ha    ; accumulator result of n1+n2 using binary arithmetic
+                        
+1064 : 08                       php
+1065 : 68                       pla
+1066 : 851a                     sta hnvzc ; flags result of n1+n2 using binary arithmetic
+1068 : c001                     cpy #1
+106a : a514                     lda n1l
+106c : 6517                     adc n2l
+106e : c90a                     cmp #$0a
+1070 : a200                     ldx #0
+1072 : 9006                     bcc a1
+1074 : e8                       inx
+1075 : 6905                     adc #5    ; add 6 (carry is set)
+1077 : 290f                     and #$0f
+1079 : 38                       sec
+107a : 0513             a1      ora n1h
+                        ;
+                        ; if n1l + n2l <  $0a, then add n2 & $f0
+                        ; if n1l + n2l >= $0a, then add (n2 & $f0) + $0f + 1 (carry is set)
+                        ;
+107c : 7515                     adc n2h,x
+107e : 08                       php
+107f : b004                     bcs a2
+1081 : c9a0                     cmp #$a0
+1083 : 9003                     bcc a3
+1085 : 695f             a2      adc #$5f  ; add $60 (carry is set)
+1087 : 38                       sec
+1088 : 851b             a3      sta ar    ; predicted accumulator result
+108a : 08                       php
+108b : 68                       pla
+108c : 851f                     sta cf    ; predicted carry result
+108e : 68                       pla
+                        ;
+                        ; note that all 8 bits of the p register are stored in vf
+                        ;
+108f : 851d                     sta vf    ; predicted v flags
+1091 : 60                       rts
+                        
+                        ; calculate the actual decimal mode accumulator and flags, and the
+                        ; accumulator and flag results when n2 is subtracted from n1 using binary
+                        ; arithmetic
+                        ;
+1092 : f8               sub     sed       ; decimal mode
+1093 : c001                     cpy #1    ; set carry if y = 1, clear carry if y = 0
+1095 : a511                     lda n1
+1097 : e512                     sbc n2
+1099 : 8520                     sta da    ; actual accumulator result in decimal mode
+109b : 08                       php
+109c : 68                       pla
+109d : 8518                     sta dnvzc ; actual flags result in decimal mode
+109f : d8                       cld       ; binary mode
+10a0 : c001                     cpy #1    ; set carry if y = 1, clear carry if y = 0
+10a2 : a511                     lda n1
+10a4 : e512                     sbc n2
+10a6 : 8519                     sta ha    ; accumulator result of n1-n2 using binary arithmetic
+                        
+10a8 : 08                       php
+10a9 : 68                       pla
+10aa : 851a                     sta hnvzc ; flags result of n1-n2 using binary arithmetic
+10ac : 60                       rts
+                        
+                        ; calculate the predicted sbc accumulator result for the 6502 and 65816
+                        
+                        ;
+10ad : c001             sub1    cpy #1    ; set carry if y = 1, clear carry if y = 0
+10af : a514                     lda n1l
+10b1 : e517                     sbc n2l
+10b3 : a200                     ldx #0
+10b5 : b006                     bcs s11
+10b7 : e8                       inx
+10b8 : e905                     sbc #5    ; subtract 6 (carry is clear)
+10ba : 290f                     and #$0f
+10bc : 18                       clc
+10bd : 0513             s11     ora n1h
+                        ;
+                        ; if n1l - n2l >= 0, then subtract n2 & $f0
+                        ; if n1l - n2l <  0, then subtract (n2 & $f0) + $0f + 1 (carry is clear)
+                        ;
+10bf : f515                     sbc n2h,x
+10c1 : b002                     bcs s12
+10c3 : e95f                     sbc #$5f  ; subtract $60 (carry is clear)
+10c5 : 851b             s12     sta ar
+10c7 : 60                       rts
+                        
+                        ; calculate the predicted sbc accumulator result for the 6502 and 65c02
+                        
+                        ;
+10c8 : c001             sub2    cpy #1    ; set carry if y = 1, clear carry if y = 0
+10ca : a514                     lda n1l
+10cc : e517                     sbc n2l
+10ce : a200                     ldx #0
+10d0 : b004                     bcs s21
+10d2 : e8                       inx
+10d3 : 290f                     and #$0f
+10d5 : 18                       clc
+10d6 : 0513             s21     ora n1h
+                        ;
+                        ; if n1l - n2l >= 0, then subtract n2 & $f0
+                        ; if n1l - n2l <  0, then subtract (n2 & $f0) + $0f + 1 (carry is clear)
+                        ;
+10d8 : f515                     sbc n2h,x
+10da : b002                     bcs s22
+10dc : e95f                     sbc #$5f   ; subtract $60 (carry is clear)
+10de : e000             s22     cpx #0
+10e0 : f002                     beq s23
+10e2 : e906                     sbc #6
+10e4 : 851b             s23     sta ar     ; predicted accumulator result
+10e6 : 60                       rts
+                        
+                        ; compare accumulator actual results to predicted results
+                        ;
+                        ; return:
+                        ;   z flag = 1 (beq branch) if same
+                        ;   z flag = 0 (bne branch) if different
+                        ;
+10e7 : a520             compare lda da
+10e9 : c51b                     cmp ar
+10eb : d006                     bne c1
+                                ; lda dnvzc ; [7] see text
+                                ; eor nf
+                                ; and #$80  ; mask off n flag
+                                ; bne c1
+                                ; lda dnvzc ; [8] see text
+                                ; eor vf
+                                ; and #$40  ; mask off v flag
+                                ; bne c1    ; [9] see text
+                                ; lda dnvzc
+                                ; eor zf    ; mask off z flag
+                                ; and #2
+                                ; bne c1    ; [10] see text
+10ed : a518                     lda dnvzc
+10ef : 451f                     eor cf
+10f1 : 2901                     and #1    ; mask off c flag
+10f3 : 60               c1      rts
+                        
+                        ; these routines store the predicted values for adc and sbc for the 6502,
+                        ; 65c02, and 65816 in ar, cf, nf, vf, and zf
+                        
+10f4 : a51d             a6502   lda vf
+                        ;
+                        ; since all 8 bits of the p register were stored in vf, bit 7 of vf contains
+                        ; the n flag for nf
+                        ;
+10f6 : 851c                     sta nf
+10f8 : a51a                     lda hnvzc
+10fa : 851e                     sta zf
+10fc : 60                       rts
+                        
+10fd : 20ad10           s6502   jsr sub1
+1100 : a51a                     lda hnvzc
+1102 : 851c                     sta nf
+1104 : 851d                     sta vf
+1106 : 851e                     sta zf
+1108 : 851f                     sta cf
+110a : 60                       rts
+                        
+No errors in pass 2.
+Wrote binary from address $1000 through $110a.
+Total size 267 bytes.
+

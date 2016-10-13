@@ -1,0 +1,351 @@
+AS65 Assembler for R6502 [1.42].  Copyright 1994-2007, Frank A. Kingswood                                                Page    1
+---------------------------------------------- D:\Tools\6502\AS65\simpledecimal.a65 ----------------------------------------------
+
+155 lines read, no errors in pass 1.
+0001 =                  carry		equ %00000001
+0002 =                  zero		equ %00000010
+0004 =                  interrupt	equ %00000100
+0008 =                  decimal		equ %00001000
+0010 =                  break		equ %00010000
+0020 =                  reserved	equ %00100000
+0040 =                  overflow	equ %01000000
+0080 =                  negative	equ %10000000
+                        
+0002 =                  fz      	equ zero
+0080 =                  fn 			equ negative
+0001 =                  fc			equ carry
+0041 =                  fvc			equ	overflow+carry
+0081 =                  fnc			equ negative+carry
+00c0 =                  fnv			equ negative+overflow
+00c1 =                  fnvc		equ negative+overflow+carry
+0003 =                  fzc			equ zero+carry
+                        
+                        
+                        
+                        cmp_flag    macro       ;I_flag is always enabled
+                                    cmp #(\1|$38)&$ff
+                                    endm
+                        
+                        tst_stat    macro       ;testing flags in the processor status register
+                                    php         ;save status
+                                    php         ;use stack to retrieve status
+                                    pla
+                                    cmp_flag \1
+                                    bne *       ;trap
+                                    plp         ;restore status
+                                    endm
+                        
+                        tst_a       macro       ;testing result in accu & flags
+                                    php         ;save flags
+                                    php
+                                    cmp #\1     ;test result
+                                    bne *       ;trap
+                                    pla         ;load status
+                                    cmp_flag \2
+                                    bne *       ;trap
+                                    plp         ;restore status
+                                    endm
+                        
+                        ; --- Start program ---
+1000 =                  	org $1000
+                        
+1000 : 58               	cli
+1001 : f8               	sed
+                        
+                        ; --- ADC tests ---
+1002 :                  test1:
+1002 : 18               	clc
+1003 : a900             	lda #$00
+1005 : 6900             	adc #$00
+                        	tst_a $00,fz
+1007 : 08              >            php         ;save flags
+1008 : 08              >            php
+1009 : c900            >            cmp #$00     ;test result
+100b : d0fe            >            bne *       ;trap
+100d : 68              >            pla         ;load status
+                       >            cmp_flag fz
+100e : c93a            >            cmp #(fz|$38)&$ff
+                       >
+1010 : d0fe            >            bne *       ;trap
+1012 : 28              >            plp         ;restore status
+                        
+                        	
+1013 :                  test2:
+1013 : 38               	sec
+1014 : a979             	lda #$79
+1016 : 6900             	adc #$00
+                        	tst_a $80,fnv
+1018 : 08              >            php         ;save flags
+1019 : 08              >            php
+101a : c980            >            cmp #$80     ;test result
+101c : d0fe            >            bne *       ;trap
+101e : 68              >            pla         ;load status
+                       >            cmp_flag fnv
+101f : c9f8            >            cmp #(fnv|$38)&$ff
+                       >
+1021 : d0fe            >            bne *       ;trap
+1023 : 28              >            plp         ;restore status
+                        
+                        
+1024 :                  test3:
+1024 : 18               	clc
+1025 : a924             	lda #$24
+1027 : 6956             	adc #$56
+                        	tst_a $80,fnv
+1029 : 08              >            php         ;save flags
+102a : 08              >            php
+102b : c980            >            cmp #$80     ;test result
+102d : d0fe            >            bne *       ;trap
+102f : 68              >            pla         ;load status
+                       >            cmp_flag fnv
+1030 : c9f8            >            cmp #(fnv|$38)&$ff
+                       >
+1032 : d0fe            >            bne *       ;trap
+1034 : 28              >            plp         ;restore status
+                        
+                        
+1035 :                  test4:
+1035 : 18               	clc
+1036 : a993             	lda #$93
+1038 : 6982             	adc #$82
+                        	tst_a $75,fvc
+103a : 08              >            php         ;save flags
+103b : 08              >            php
+103c : c975            >            cmp #$75     ;test result
+103e : d0fe            >            bne *       ;trap
+1040 : 68              >            pla         ;load status
+                       >            cmp_flag fvc
+1041 : c979            >            cmp #(fvc|$38)&$ff
+                       >
+1043 : d0fe            >            bne *       ;trap
+1045 : 28              >            plp         ;restore status
+                        
+                        
+1046 :                  test5:
+1046 : 18               	clc
+1047 : a989             	lda #$89
+1049 : 6976             	adc #$76
+                        	tst_a $65,fc
+104b : 08              >            php         ;save flags
+104c : 08              >            php
+104d : c965            >            cmp #$65     ;test result
+104f : d0fe            >            bne *       ;trap
+1051 : 68              >            pla         ;load status
+                       >            cmp_flag fc
+1052 : c939            >            cmp #(fc|$38)&$ff
+                       >
+1054 : d0fe            >            bne *       ;trap
+1056 : 28              >            plp         ;restore status
+                        
+                        
+1057 :                  test6:
+1057 : 38               	sec
+1058 : a989             	lda #$89
+105a : 6976             	adc #$76
+                        	tst_a $66,fzc
+105c : 08              >            php         ;save flags
+105d : 08              >            php
+105e : c966            >            cmp #$66     ;test result
+1060 : d0fe            >            bne *       ;trap
+1062 : 68              >            pla         ;load status
+                       >            cmp_flag fzc
+1063 : c93b            >            cmp #(fzc|$38)&$ff
+                       >
+1065 : d0fe            >            bne *       ;trap
+1067 : 28              >            plp         ;restore status
+                        
+                        
+1068 :                  test7:
+1068 : 18               	clc
+1069 : a980             	lda #$80
+106b : 69f0             	adc #$F0
+                        	tst_a $D0,fvc
+106d : 08              >            php         ;save flags
+106e : 08              >            php
+106f : c9d0            >            cmp #$D0     ;test result
+1071 : d0fe            >            bne *       ;trap
+1073 : 68              >            pla         ;load status
+                       >            cmp_flag fvc
+1074 : c979            >            cmp #(fvc|$38)&$ff
+                       >
+1076 : d0fe            >            bne *       ;trap
+1078 : 28              >            plp         ;restore status
+                        
+                        
+1079 :                  test8:
+1079 : 18               	clc
+107a : a980             	lda #$80
+107c : 69fa             	adc #$FA
+                        	tst_a $E0,fnc
+107e : 08              >            php         ;save flags
+107f : 08              >            php
+1080 : c9e0            >            cmp #$E0     ;test result
+1082 : d0fe            >            bne *       ;trap
+1084 : 68              >            pla         ;load status
+                       >            cmp_flag fnc
+1085 : c9b9            >            cmp #(fnc|$38)&$ff
+                       >
+1087 : d0fe            >            bne *       ;trap
+1089 : 28              >            plp         ;restore status
+                        
+                        
+108a :                  test9:
+108a : 18               	clc
+108b : a92f             	lda #$2F
+108d : 694f             	adc #$4F
+                        	tst_a $74,0
+108f : 08              >            php         ;save flags
+1090 : 08              >            php
+1091 : c974            >            cmp #$74     ;test result
+1093 : d0fe            >            bne *       ;trap
+1095 : 68              >            pla         ;load status
+                       >            cmp_flag 0
+1096 : c938            >            cmp #(0|$38)&$ff
+                       >
+1098 : d0fe            >            bne *       ;trap
+109a : 28              >            plp         ;restore status
+                        
+                        
+109b :                  test10:
+109b : 38               	sec
+109c : a96f             	lda #$6F
+109e : 6900             	adc #$00
+                        	tst_a $76,0
+10a0 : 08              >            php         ;save flags
+10a1 : 08              >            php
+10a2 : c976            >            cmp #$76     ;test result
+10a4 : d0fe            >            bne *       ;trap
+10a6 : 68              >            pla         ;load status
+                       >            cmp_flag 0
+10a7 : c938            >            cmp #(0|$38)&$ff
+                       >
+10a9 : d0fe            >            bne *       ;trap
+10ab : 28              >            plp         ;restore status
+                        
+                        
+                        ; --- SBC tests ---
+10ac :                  test11:
+10ac : 18               	clc
+10ad : a900             	lda #$00
+10af : e900             	sbc #$00
+                        	tst_a $99,fn
+10b1 : 08              >            php         ;save flags
+10b2 : 08              >            php
+10b3 : c999            >            cmp #$99     ;test result
+10b5 : d0fe            >            bne *       ;trap
+10b7 : 68              >            pla         ;load status
+                       >            cmp_flag fn
+10b8 : c9b8            >            cmp #(fn|$38)&$ff
+                       >
+10ba : d0fe            >            bne *       ;trap
+10bc : 28              >            plp         ;restore status
+                        
+                        
+10bd :                  test12:
+10bd : 38               	sec
+10be : a900             	lda #$00
+10c0 : e900             	sbc #$00
+                        	tst_a $00,fzc
+10c2 : 08              >            php         ;save flags
+10c3 : 08              >            php
+10c4 : c900            >            cmp #$00     ;test result
+10c6 : d0fe            >            bne *       ;trap
+10c8 : 68              >            pla         ;load status
+                       >            cmp_flag fzc
+10c9 : c93b            >            cmp #(fzc|$38)&$ff
+                       >
+10cb : d0fe            >            bne *       ;trap
+10cd : 28              >            plp         ;restore status
+                        
+                        
+10ce :                  test13:
+10ce : 38               	sec
+10cf : a900             	lda #$00
+10d1 : e901             	sbc #$01
+                        	tst_a $99,fn
+10d3 : 08              >            php         ;save flags
+10d4 : 08              >            php
+10d5 : c999            >            cmp #$99     ;test result
+10d7 : d0fe            >            bne *       ;trap
+10d9 : 68              >            pla         ;load status
+                       >            cmp_flag fn
+10da : c9b8            >            cmp #(fn|$38)&$ff
+                       >
+10dc : d0fe            >            bne *       ;trap
+10de : 28              >            plp         ;restore status
+                        
+                        
+10df :                  test14:
+10df : 38               	sec
+10e0 : a90a             	lda #$0A
+10e2 : e900             	sbc #$00
+                        	tst_a $0A,fc
+10e4 : 08              >            php         ;save flags
+10e5 : 08              >            php
+10e6 : c90a            >            cmp #$0A     ;test result
+10e8 : d0fe            >            bne *       ;trap
+10ea : 68              >            pla         ;load status
+                       >            cmp_flag fc
+10eb : c939            >            cmp #(fc|$38)&$ff
+                       >
+10ed : d0fe            >            bne *       ;trap
+10ef : 28              >            plp         ;restore status
+                        
+                        
+10f0 :                  test15:
+10f0 : 18               	clc
+10f1 : a90b             	lda #$0B
+10f3 : e900             	sbc #$00
+                        	tst_a $0A,fc
+10f5 : 08              >            php         ;save flags
+10f6 : 08              >            php
+10f7 : c90a            >            cmp #$0A     ;test result
+10f9 : d0fe            >            bne *       ;trap
+10fb : 68              >            pla         ;load status
+                       >            cmp_flag fc
+10fc : c939            >            cmp #(fc|$38)&$ff
+                       >
+10fe : d0fe            >            bne *       ;trap
+1100 : 28              >            plp         ;restore status
+                        
+                        
+1101 :                  test16:
+1101 : 38               	sec
+1102 : a99a             	lda #$9A
+1104 : e900             	sbc #$00
+                        	tst_a $9A,fnc
+1106 : 08              >            php         ;save flags
+1107 : 08              >            php
+1108 : c99a            >            cmp #$9A     ;test result
+110a : d0fe            >            bne *       ;trap
+110c : 68              >            pla         ;load status
+                       >            cmp_flag fnc
+110d : c9b9            >            cmp #(fnc|$38)&$ff
+                       >
+110f : d0fe            >            bne *       ;trap
+1111 : 28              >            plp         ;restore status
+                        
+                        
+1112 :                  test17:
+1112 : 18               	clc
+1113 : a99b             	lda #$9B
+1115 : e900             	sbc #$00
+                        	tst_a $9A,fnc
+1117 : 08              >            php         ;save flags
+1118 : 08              >            php
+1119 : c99a            >            cmp #$9A     ;test result
+111b : d0fe            >            bne *       ;trap
+111d : 68              >            pla         ;load status
+                       >            cmp_flag fnc
+111e : c9b9            >            cmp #(fnc|$38)&$ff
+                       >
+1120 : d0fe            >            bne *       ;trap
+1122 : 28              >            plp         ;restore status
+                        
+                        
+1123 : 4c2311           	jmp * ; the end
+                        	
+No errors in pass 2.
+Wrote binary from address $1000 through $1125.
+Total size 294 bytes.
+
