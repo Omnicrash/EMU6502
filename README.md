@@ -1,5 +1,5 @@
 # EMU6502
-A simple MOS6502 interpreter implementation in C#
+A simple MOS6502 interpreter implementation in C# I wrote in 2014.
 
 EMU6502 is a simple MOS6502 interpreter with accurate cycle counting, full decimal support. With the exception of most illegal opcodes, all opcodes are fully implemented and tested.
 
